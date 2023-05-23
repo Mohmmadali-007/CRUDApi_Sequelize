@@ -2,6 +2,29 @@ const db = require("../models");
 const Employee = db.employees;
 const Op = db.Sequelize.Op;
 
+
+
+
+// pagenation
+
+const getPagination = (page, size) => {
+  const limit = size ? +size : 3;
+  const offset = page ? page * limit : 0;
+
+  return { limit, offset };
+};
+
+const getPagingData = (data, page, limit) => {
+  const { count: totalItems, rows: employees } = data;
+  const currentPage = page ? +page : 0;
+  const totalPages = Math.ceil(totalItems / limit);
+
+  return { totalItems, employees, totalPages, currentPage };
+};
+
+
+
+
 // Create and Save a new employee
 exports.create = (req, res) => {
   // Validate request
@@ -37,17 +60,20 @@ exports.create = (req, res) => {
 
 // Retrieve all employees from the database.
 exports.findAll = (req, res) => {
-  const name = req.query.name;
+  const { page, size, name } = req.query;
   var condition = name ? { name: { [Op.like]: `%${name}%` } } : null;
 
-  Employee.findAll({ where: condition })
+  const { limit, offset } = getPagination(page, size);
+
+  Employee.findAndCountAll({ where: condition, limit, offset })
     .then(data => {
-      res.send(data);
+      const response = getPagingData(data, page, limit);
+      res.send(response);
     })
     .catch(err => {
       res.status(500).send({
         message:
-          err.message || "Some error occurred while retrieving employees."
+          err.message || "Some error occurred while retrieving Employees."
       });
     });
 };
@@ -142,14 +168,18 @@ exports.deleteAll = (req, res) => {
 
 // find all published employee
 exports.findAllPublished = (req, res) => {
-  Employee.findAll({ where: { published: true } })
+  const { page, size } = req.query;
+  const { limit, offset } = getPagination(page, size);
+
+  Employee.findAndCountAll({ where: { published: true }, limit, offset })
     .then(data => {
-      res.send(data);
+      const response = getPagingData(data, page, limit);
+      res.send(response);
     })
     .catch(err => {
       res.status(500).send({
         message:
-          err.message || "Some error occurred while retrieving employees."
+          err.message || "Some error occurred while retrieving Employees."
       });
     });
 };
